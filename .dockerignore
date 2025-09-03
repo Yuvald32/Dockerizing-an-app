@@ -1,0 +1,22 @@
+# Git and version control
+.git
+.gitignore
+
+# IDE/editor
+.vscode
+.idea
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+
+# Environment files (secrets)
+.env
+
+# OS-specific
+.DS_Store
+Thumbs.db
