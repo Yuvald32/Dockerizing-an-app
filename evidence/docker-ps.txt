@@ -1,2 +1,0 @@
-NAMES      IMAGE                  PORTS                                       STATUS
-aws-dash   aws-dashboard:latest   0.0.0.0:5001->5001/tcp, :::5001->5001/tcp   Up 16 minutes

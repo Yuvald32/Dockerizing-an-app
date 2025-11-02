@@ -1,22 +1,17 @@
-# Git and version control
-.git
-.gitignore
-
-# IDE/editor
-.vscode
-.idea
-
-# Python cache
+# Python
 __pycache__/
 *.pyc
 
-# Virtual environments
-venv/
+# Virtual envs
 .venv/
+venv/
 
-# Environment files (secrets)
-.env
-
-# OS-specific
+# macOS
 .DS_Store
-Thumbs.db
+
+# VSC / Misc
+.vscode/
+.idea/
+
+# Artifacts / Misc
+AWSCLIV2.pkg

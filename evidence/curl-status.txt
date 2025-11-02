@@ -1,7 +1,0 @@
-HTTP/1.1 500 INTERNAL SERVER ERROR
-Server: Werkzeug/3.1.3 Python/3.11.13
-Date: Sat, 06 Sep 2025 13:35:13 GMT
-Content-Type: text/html; charset=utf-8
-Content-Length: 18407
-Connection: close
-

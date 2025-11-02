@@ -1,21 +1,24 @@
-FROM python:3.11-slim AS builder
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+FROM python:3.13-slim AS runtime
+
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV TZ=Asia/Jerusalem
 
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+COPY app/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-FROM python:3.11-slim AS runtime
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"
-WORKDIR /app
+COPY app/ /app/
 
-COPY --from=builder /opt/venv /opt/venv
-COPY app.py /app
+RUN useradd -m appuser
+USER appuser
 
 EXPOSE 5001
-ENV AWS_DEFAULT_REGION="us-east-1"
 
-CMD ["python", "app.py"]
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/healthz')" || exit 1
+
+CMD ["gunicorn", "-b", "0.0.0.0:5001", "app:app"]

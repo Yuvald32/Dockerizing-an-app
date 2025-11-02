@@ -1,2 +1,0 @@
-REPOSITORY      TAG       IMAGE ID       CREATED          SIZE
-aws-dashboard   latest    38223ed090b9   19 minutes ago   170MB

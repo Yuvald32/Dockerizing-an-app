@@ -1,0 +1,17 @@
+title: "מה אם?"
+artist: "דנה מרם"
+subtitle: "סינגל ראשון מה-EP • הופק ע\"י SHODS במסגרת רימון (הפקה + כתיבה/הלחנה)"
+brand_color: "#dccdae"
+cover_image: ""  # נוסיף מאוחר יותר
+
+links:
+  - name: "Spotify"
+    url: "https://open.spotify.com/track/1iT135ri9LRmDpTt4VMJ6d?si=dd4895ea59f0412a"
+  - name: "Apple Music"
+    url: "https://music.apple.com/us/song/%D7%9E%D7%94-%D7%90%D7%9D/1818390201"
+  - name: "YouTube"
+    url: "https://www.youtube.com/watch?v=Z_83t5PLz_4&list=RDZ_83t5PLz_4&start_radio=1"
+
+embeds:
+  spotify_track: "1iT135ri9LRmDpTt4VMJ6d"
+  youtube_id: "Z_83t5PLz_4"

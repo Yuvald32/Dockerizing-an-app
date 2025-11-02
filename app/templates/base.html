@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{ title }} – {{ artist }}</title>
+
+  <meta property="og:title" content="{{ title }} – {{ artist }}">
+  <meta property="og:description" content="{{ subtitle }}">
+  {% if cover_image %}<meta property="og:image" content="{{ cover_image }}">{% endif %}
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>:root { --brand: {{ brand_color|default('#222') }}; }</style>
+</head>
+<body>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

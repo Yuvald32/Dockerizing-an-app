@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+  <header>
+    <h1>{{ title }}</h1>
+    <h2>{{ artist }}</h2>
+    <p class="subtitle">{{ subtitle }}</p>
+  </header>
+
+  <section class="links">
+    {% for item in links %}
+      <a class="btn" href="{{ item.url }}" target="_blank" rel="noopener">
+        {{ item.name }}
+      </a>
+    {% endfor %}
+  </section>
+
+  <section class="embeds">
+    {% if embeds.spotify_track %}
+      <iframe style="border-radius:12px"
+              src="https://open.spotify.com/embed/track/{{ embeds.spotify_track }}"
+              width="100%" height="152" frameborder="0"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture">
+      </iframe>
+    {% endif %}
+
+    {% if embeds.youtube_id %}
+      <iframe width="100%" height="315"
+              src="https://www.youtube.com/embed/{{ embeds.youtube_id }}"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen>
+      </iframe>
+    {% endif %}
+  </section>
+{% endblock %}

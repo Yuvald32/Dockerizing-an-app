@@ -1,0 +1,33 @@
+image:
+  repository: shods/smartlink
+  tag: v0.1
+  pullPolicy: IfNotPresent
+
+containerPort: 5001
+
+env:
+  - name: TZ
+    value: "Asia/Jerusalem"
+
+service:
+  type: NodePort
+  port: 5001
+  targetPort: 5001
+
+probes:
+  path: /healthz
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []

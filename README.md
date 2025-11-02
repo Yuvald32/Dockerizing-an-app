@@ -16,26 +16,100 @@ to demonstrate modern CI/CD and cloud-native practices — bringing together cre
 
 ---
 
-## 🧱 Run Locally
-```bash
-cd app
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python app.py
-# Open http://localhost:5001
-```
+## 📂 Repository Structure
+├── app.py                     # Flask + boto3 app
+├── Dockerfile                 # Docker build definition
+├── requirements.txt           # Python dependencies
+├── flask-aws-monitor/         # Helm chart
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   └── templates/
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       ├── ingress.yaml
+│       └── _helpers.tpl
+├── evidence/                  # Evidence for Sections 3–5
+│   ├── section3-error-browser.png
+│   ├── section4-dashboard-fixed.png
+│   ├── helm-install.png
+│   ├── kubectl-get-pods.png
+│   └── dashboard-minikube.png
+└── README.md
 
-## 🐳 Run in Docker
-```bash
-docker build -t shods/smartlink:dev .
-docker run -p 5001:5001 shods/smartlink:dev
-# http://localhost:5001
-```
+---
 
-## ⚙️ Health Check
+## 🚀 How to Run
 
-The app exposes /healthz for Kubernetes readiness/liveness probes.
+### Option A – Run with Docker on EC2
+# 1. Connect to your EC2 instance via SSH
 
-## 🧩 Helm & Terraform (Next Steps)
-	•	Helm: update values.yaml → image.repository: shods/smartlink, image.tag: v0.1, containerPort: 5001
-	•	Terraform: create main.tf with Kubernetes provider and a deployment manifest for this app.
+# 2. Clone the repository
+git clone https://github.com/Yuvald32/Dockerizing-an-app.git
+cd Dockerizing-an-app
+
+# 3. Build the Docker image
+docker build -t aws-dashboard:latest .
+
+# 4. Run the container
+docker run -d --name aws-dash -p 5001:5001 \
+  -e AWS_DEFAULT_REGION=us-east-1 \
+  aws-dashboard:latest
+
+# 5. Open in browser:
+# http://<EC2_PUBLIC_IP>:5001
+
+### Option B – Run with Helm on Minikube (Demo mode, no real AWS data)
+# 1. Start Minikube
+minikube start
+
+# 2. Navigate into the Helm chart
+cd flask-aws-monitor
+
+# 3. Lint and deploy
+helm lint .
+helm upgrade --install flask-monitor .
+
+# 4. Verify resources
+kubectl get pods,svc
+
+# 5. Access in browser
+minikube service flask-monitor-flask-aws-monitor --url
+
+### Option B2 – Run with Helm on Minikube (Real AWS data)
+# 1. Export AWS credentials as environment variables
+export AWS_ACCESS_KEY_ID="<YOUR_ACCESS_KEY_ID>"
+export AWS_SECRET_ACCESS_KEY="<YOUR_SECRET_ACCESS_KEY>"
+export AWS_REGION="us-east-1"
+
+# 2. Create or update a Kubernetes Secret from these variables
+kubectl create secret generic flask-monitor-flask-aws-monitor-aws \
+  --from-literal=AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+  --from-literal=AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+  --from-literal=AWS_REGION="$AWS_REGION" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# 3. Deploy the Helm chart
+cd flask-aws-monitor
+helm lint .
+helm upgrade --install flask-monitor .
+
+# 4. Verify deployment
+kubectl rollout status deploy/flask-monitor-flask-aws-monitor
+kubectl get pods,svc
+
+# 5. Access in browser
+minikube service flask-monitor-flask-aws-monitor --url
+
+✅ Result
+	•	Section 3: Bug reproduced.
+	•	Section 4: Bug fixed; app works on EC2 (Docker).
+	•	Section 5: App packaged as Helm chart and deployed on Kubernetes (Minikube).
+	•	Bonus toggle implemented (Service type).
+	•	Evidence included in evidence/.
+
+⸻
+
+👨‍💻 Author
+
+Yuval Davidson
+DevOps Course – John Bryce, 2025
