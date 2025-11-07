@@ -3,6 +3,7 @@ pipeline {
 
   options {
     timestamps()
+    buildDiscarder(logRotator(numToKeepStr: '10'))
   }
 
   parameters {
@@ -10,21 +11,19 @@ pipeline {
   }
 
   environment {
-    // אלו שני ה-Credentials שכבר יצרת ב-Jenkins מסוג Username/Password
-    DOCKERHUB_USERNAME = credentials('dockerhub-username')
-    DOCKERHUB_PASSWORD = credentials('dockerhub-password')
-
-    // שם התמונה ייגזר אוטומטית מה-username כדי שלא ניפול על טייפואים
-    IMAGE = "${DOCKERHUB_USERNAME}/smart-link-app"
-    IMAGE_TAG = "${env.BUILD_NUMBER}"
-    IMAGE_FULL = "${IMAGE}:${IMAGE_TAG}"
-    IMAGE_LATEST = "${IMAGE}:latest"
+    // לצמצם בעיות /tmp קטנות
+    TMPDIR = '/var/lib/jenkins/tmp'
+    IMAGE_REPO = 'shods/smart-link-app'   // שנה אם צריך
+    IMAGE_TAG  = "${env.BUILD_NUMBER}"
+    IMAGE_FULL = "${IMAGE_REPO}:${IMAGE_TAG}"
+    IMAGE_LATEST = "${IMAGE_REPO}:latest"
   }
 
   stages {
     stage('Checkout') {
       steps {
         checkout scm
+        sh 'echo "Commit: $(git rev-parse --short HEAD)"'
       }
     }
 
@@ -35,20 +34,19 @@ pipeline {
             script {
               if (params.USE_MOCK) {
                 sh '''
-                  echo "MOCK Linting..."
-                  echo "flake8 ."; echo "shellcheck **/*.sh"; echo "hadolint Dockerfile"
+                  echo "[MOCK] flake8 ."
+                  echo "[MOCK] shellcheck **/*.sh"
+                  echo "[MOCK] hadolint Dockerfile"
                 '''
               } else {
                 sh '''
                   python3 -m pip install --upgrade pip >/dev/null 2>&1 || true
-                  pip3 install flake8 bandit >/dev/null 2>&1 || true
-                  # Dockerfile lint (hadolint) - נתקין בינארי קל
+                  pip3 install -q flake8 bandit || true
                   if ! command -v hadolint >/dev/null 2>&1; then
                     curl -sL https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
                     chmod +x /usr/local/bin/hadolint
                   fi
                   flake8 .
-                  # אם יש סקריפטים
                   if ls *.sh >/dev/null 2>&1; then shellcheck *.sh; fi
                   hadolint Dockerfile
                 '''
@@ -57,24 +55,21 @@ pipeline {
           }
         }
 
-        stage('Security Scan') {
+        stage('Security Scan (Code)') {
           steps {
             script {
               if (params.USE_MOCK) {
                 sh '''
-                  echo "MOCK Security scanning..."
-                  echo "bandit -r ."; echo "trivy image ${IMAGE_FULL}"
+                  echo "[MOCK] bandit -r ."
+                  echo "[MOCK] trivy image ${IMAGE_FULL}"
                 '''
               } else {
                 sh '''
-                  # Bandit לקוד פייתון
-                  python3 -m pip install bandit >/dev/null 2>&1 || true
+                  python3 -m pip install -q bandit || true
                   bandit -q -r .
-                  # Trivy לסריקת התמונה (נריץ על ה-Workspace אם מותקן; אחרת נתקין בצורה מהירה)
                   if ! command -v trivy >/dev/null 2>&1; then
-                    sudo rpm -q trivy || sudo rpm -Uvh --quiet https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.55.0_Linux-64bit.rpm || true
+                    sudo rpm -Uvh --quiet https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.55.0_Linux-64bit.rpm || true
                   fi
-                  echo "Trivy will scan after build stage on the built image"
                 '''
               }
             }
@@ -83,12 +78,18 @@ pipeline {
       }
     }
 
-    stage('Docker Build') {
+    stage('Docker Build & Login') {
       steps {
-        sh '''
-          echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-          docker build -t "${IMAGE_FULL}" -t "${IMAGE_LATEST}" .
-        '''
+        withCredentials([
+          string(credentialsId: 'dockerhub-username', variable: 'DOCKERHUB_USERNAME'),
+          string(credentialsId: 'dockerhub-password', variable: 'DOCKERHUB_PASSWORD')
+        ]) {
+          sh '''
+            echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            docker version
+            docker build -t "${IMAGE_FULL}" -t "${IMAGE_LATEST}" .
+          '''
+        }
       }
     }
 
@@ -106,10 +107,16 @@ pipeline {
 
     stage('Push to Docker Hub') {
       steps {
-        sh '''
-          docker push "${IMAGE_FULL}"
-          docker push "${IMAGE_LATEST}"
-        '''
+        withCredentials([
+          string(credentialsId: 'dockerhub-username', variable: 'DOCKERHUB_USERNAME'),
+          string(credentialsId: 'dockerhub-password', variable: 'DOCKERHUB_PASSWORD')
+        ]) {
+          sh '''
+            echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            docker push "${IMAGE_FULL}"
+            docker push "${IMAGE_LATEST}"
+          '''
+        }
       }
     }
   }
@@ -117,6 +124,7 @@ pipeline {
   post {
     always {
       sh 'docker logout || true'
+      echo "Done. Image: ${IMAGE_FULL}"
     }
     success {
       echo "Pipeline completed successfully. Pushed: ${IMAGE_FULL} and ${IMAGE_LATEST}"
