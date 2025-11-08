@@ -22,3 +22,5 @@ __pycache__/
 *.pyc
 .DS_Store
 AWSCLIV2.pkg
+.terraform/
+terraform.tfstate*
