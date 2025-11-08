@@ -4,25 +4,24 @@ pipeline {
   options { timestamps() }
 
   parameters {
-    booleanParam(
-      name: 'USE_MOCK',
-      defaultValue: true,
-      description: 'Run mock lint & security instead of real tools'
-    )
+    booleanParam(name: 'USE_MOCK', defaultValue: true,
+                 description: 'Run mock lint & security instead of real tools')
   }
 
   environment {
-    IMAGE_NAME = 'smart-link-app'          // שם התמונה בלי המשתמש
+    // IDs כפי שהגדרת ב-Credentials (Username/Password)
+    DOCKERHUB = credentials('dockerhub')
+    // נבנה פעם אחת ונשתמש בכל השלבים
+    IMAGE      = "${DOCKERHUB_USR}/smart-link-app"
+    IMAGE_TAG  = "${env.BUILD_NUMBER}"
+    IMAGE_FULL = "${IMAGE}:${IMAGE_TAG}"
+    IMAGE_LATEST = "${IMAGE}:latest"
   }
 
   stages {
+
     stage('Checkout') {
-      steps {
-        checkout scm
-        sh '''
-          echo "Commit: $(git rev-parse --short HEAD)"
-        '''
-      }
+      steps { checkout scm }
     }
 
     stage('Parallel Checks') {
@@ -39,7 +38,7 @@ pipeline {
               } else {
                 sh '''
                   python3 -m pip install --upgrade pip >/dev/null 2>&1 || true
-                  pip3 install -q flake8 bandit || true
+                  pip3 install flake8 bandit >/dev/null 2>&1 || true
                   if ! command -v hadolint >/dev/null 2>&1; then
                     curl -sL https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
                     chmod +x /usr/local/bin/hadolint
@@ -57,18 +56,18 @@ pipeline {
           steps {
             script {
               if (params.USE_MOCK) {
-                sh '''
+                sh """
                   echo "[MOCK] bandit -r ."
-                  echo "[MOCK] trivy image shods/${IMAGE_NAME}:${BUILD_NUMBER}"
-                '''
+                  echo "[MOCK] trivy image ${IMAGE_FULL}"
+                """
               } else {
                 sh '''
-                  python3 -m pip install -q bandit || true
+                  python3 -m pip install bandit >/dev/null 2>&1 || true
                   bandit -q -r .
                   if ! command -v trivy >/dev/null 2>&1; then
                     sudo rpm -Uvh --quiet https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.55.0_Linux-64bit.rpm || true
                   fi
-                  echo "Trivy will scan after build"
+                  echo "Trivy will scan after build stage on the built image"
                 '''
               }
             }
@@ -80,16 +79,16 @@ pipeline {
     stage('Docker Build & Login') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub',
-                                          usernameVariable: 'DOCKERHUB_USERNAME',
-                                          passwordVariable: 'DOCKERHUB_PASSWORD')]) {
-          sh '''
-            echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            IMAGE="${DOCKERHUB_USERNAME}/${IMAGE_NAME}"
-            IMAGE_FULL="${IMAGE}:${BUILD_NUMBER}"
-            docker build -t "${IMAGE_FULL}" -t "${IMAGE}:latest" .
-            # נשמור לקובץ כדי להשתמש בשלבים הבאים
-            printf "IMAGE=%s\nIMAGE_FULL=%s\n" "$IMAGE" "$IMAGE_FULL" > image.env
-          '''
+                        usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+          sh """
+            echo "\$DH_PASS" | docker login -u "\$DH_USER" --password-stdin
+            # נשמור את המשתנים לקובץ כדי להשתמש בהם בשלבים הבאים
+            echo "IMAGE=${IMAGE}"        >  image.env
+            echo "IMAGE_FULL=${IMAGE_FULL}" >> image.env
+            echo "IMAGE_LATEST=${IMAGE_LATEST}" >> image.env
+
+            docker build -t "${IMAGE_FULL}" -t "${IMAGE_LATEST}" .
+          """
         }
       }
     }
@@ -97,27 +96,24 @@ pipeline {
     stage('Security Scan (Image)') {
       when { expression { return !params.USE_MOCK } }
       steps {
-        sh '''
-          . image.env
+        sh """
           trivy image --exit-code 0 --severity LOW,MEDIUM "${IMAGE_FULL}"
           trivy image --exit-code 1 --severity HIGH,CRITICAL "${IMAGE_FULL}" || {
             echo "High/Critical vulnerabilities found"; exit 1;
           }
-        '''
+        """
       }
     }
 
     stage('Push to Docker Hub') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub',
-                                          usernameVariable: 'DOCKERHUB_USERNAME',
-                                          passwordVariable: 'DOCKERHUB_PASSWORD')]) {
-          sh '''
+                        usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+          sh """
             . image.env
-            echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            docker push "${IMAGE_FULL}"
-            docker push "${IMAGE}:latest"
-          '''
+            docker push "\${IMAGE_FULL}"
+            docker push "\${IMAGE_LATEST}"
+          """
         }
       }
     }
@@ -126,12 +122,10 @@ pipeline {
   post {
     always {
       sh 'docker logout || true'
-      script {
-        sh '[ -f image.env ] && cat image.env || true'
-      }
+      archiveArtifacts artifacts: 'image.env', allowEmptyArchive: true
     }
     success {
-      sh '. image.env; echo "Done. Image: ${IMAGE_FULL} and ${IMAGE}:latest"'
+      echo "Done. Image: ${IMAGE_FULL}"
     }
     failure {
       echo 'Pipeline failed. Check above logs.'
