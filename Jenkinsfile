@@ -82,11 +82,6 @@ pipeline {
                         usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
           sh """
             echo "\$DH_PASS" | docker login -u "\$DH_USER" --password-stdin
-            # נשמור את המשתנים לקובץ כדי להשתמש בהם בשלבים הבאים
-            echo "IMAGE=${IMAGE}"        >  image.env
-            echo "IMAGE_FULL=${IMAGE_FULL}" >> image.env
-            echo "IMAGE_LATEST=${IMAGE_LATEST}" >> image.env
-
             docker build -t "${IMAGE_FULL}" -t "${IMAGE_LATEST}" .
           """
         }
@@ -110,9 +105,9 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: 'dockerhub',
                         usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
           sh """
-            . image.env
-            docker push "\${IMAGE_FULL}"
-            docker push "\${IMAGE_LATEST}"
+            echo "\$DH_PASS" | docker login -u "\$DH_USER" --password-stdin
+            docker push "${IMAGE_FULL}"
+            docker push "${IMAGE_LATEST}"
           """
         }
       }
@@ -122,7 +117,6 @@ pipeline {
   post {
     always {
       sh 'docker logout || true'
-      archiveArtifacts artifacts: 'image.env', allowEmptyArchive: true
     }
     success {
       echo "Done. Image: ${IMAGE_FULL}"
