@@ -1,29 +1,27 @@
 pipeline {
   agent any
 
-  options {
-    timestamps()
-    buildDiscarder(logRotator(numToKeepStr: '10'))
-  }
+  options { timestamps() }
 
   parameters {
-    booleanParam(name: 'USE_MOCK', defaultValue: true, description: 'Run mock lint & security instead of real tools')
+    booleanParam(
+      name: 'USE_MOCK',
+      defaultValue: true,
+      description: 'Run mock lint & security instead of real tools'
+    )
   }
 
   environment {
-    // לצמצם בעיות /tmp קטנות
-    TMPDIR = '/var/lib/jenkins/tmp'
-    IMAGE_REPO = 'shods/smart-link-app'   // שנה אם צריך
-    IMAGE_TAG  = "${env.BUILD_NUMBER}"
-    IMAGE_FULL = "${IMAGE_REPO}:${IMAGE_TAG}"
-    IMAGE_LATEST = "${IMAGE_REPO}:latest"
+    IMAGE_NAME = 'smart-link-app'          // שם התמונה בלי המשתמש
   }
 
   stages {
     stage('Checkout') {
       steps {
         checkout scm
-        sh 'echo "Commit: $(git rev-parse --short HEAD)"'
+        sh '''
+          echo "Commit: $(git rev-parse --short HEAD)"
+        '''
       }
     }
 
@@ -61,7 +59,7 @@ pipeline {
               if (params.USE_MOCK) {
                 sh '''
                   echo "[MOCK] bandit -r ."
-                  echo "[MOCK] trivy image ${IMAGE_FULL}"
+                  echo "[MOCK] trivy image shods/${IMAGE_NAME}:${BUILD_NUMBER}"
                 '''
               } else {
                 sh '''
@@ -70,6 +68,7 @@ pipeline {
                   if ! command -v trivy >/dev/null 2>&1; then
                     sudo rpm -Uvh --quiet https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.55.0_Linux-64bit.rpm || true
                   fi
+                  echo "Trivy will scan after build"
                 '''
               }
             }
@@ -80,14 +79,16 @@ pipeline {
 
     stage('Docker Build & Login') {
       steps {
-        withCredentials([
-          string(credentialsId: 'dockerhub-username', variable: 'DOCKERHUB_USERNAME'),
-          string(credentialsId: 'dockerhub-password', variable: 'DOCKERHUB_PASSWORD')
-        ]) {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                                          usernameVariable: 'DOCKERHUB_USERNAME',
+                                          passwordVariable: 'DOCKERHUB_PASSWORD')]) {
           sh '''
             echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            docker version
-            docker build -t "${IMAGE_FULL}" -t "${IMAGE_LATEST}" .
+            IMAGE="${DOCKERHUB_USERNAME}/${IMAGE_NAME}"
+            IMAGE_FULL="${IMAGE}:${BUILD_NUMBER}"
+            docker build -t "${IMAGE_FULL}" -t "${IMAGE}:latest" .
+            # נשמור לקובץ כדי להשתמש בשלבים הבאים
+            printf "IMAGE=%s\nIMAGE_FULL=%s\n" "$IMAGE" "$IMAGE_FULL" > image.env
           '''
         }
       }
@@ -97,6 +98,7 @@ pipeline {
       when { expression { return !params.USE_MOCK } }
       steps {
         sh '''
+          . image.env
           trivy image --exit-code 0 --severity LOW,MEDIUM "${IMAGE_FULL}"
           trivy image --exit-code 1 --severity HIGH,CRITICAL "${IMAGE_FULL}" || {
             echo "High/Critical vulnerabilities found"; exit 1;
@@ -107,14 +109,14 @@ pipeline {
 
     stage('Push to Docker Hub') {
       steps {
-        withCredentials([
-          string(credentialsId: 'dockerhub-username', variable: 'DOCKERHUB_USERNAME'),
-          string(credentialsId: 'dockerhub-password', variable: 'DOCKERHUB_PASSWORD')
-        ]) {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                                          usernameVariable: 'DOCKERHUB_USERNAME',
+                                          passwordVariable: 'DOCKERHUB_PASSWORD')]) {
           sh '''
+            . image.env
             echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             docker push "${IMAGE_FULL}"
-            docker push "${IMAGE_LATEST}"
+            docker push "${IMAGE}:latest"
           '''
         }
       }
@@ -124,10 +126,12 @@ pipeline {
   post {
     always {
       sh 'docker logout || true'
-      echo "Done. Image: ${IMAGE_FULL}"
+      script {
+        sh '[ -f image.env ] && cat image.env || true'
+      }
     }
     success {
-      echo "Pipeline completed successfully. Pushed: ${IMAGE_FULL} and ${IMAGE_LATEST}"
+      sh '. image.env; echo "Done. Image: ${IMAGE_FULL} and ${IMAGE}:latest"'
     }
     failure {
       echo 'Pipeline failed. Check above logs.'
