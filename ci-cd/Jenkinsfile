@@ -113,10 +113,11 @@ pipeline {
       }
     }
   }
-
-  post {
+post {
     always {
-      sh 'docker logout || true'
+      node {
+        sh 'docker logout || true'
+      }
     }
     success {
       echo "Done. Image: ${IMAGE_FULL}"
@@ -126,3 +127,4 @@ pipeline {
     }
   }
 }
+  
