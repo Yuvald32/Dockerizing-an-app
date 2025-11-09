@@ -3,6 +3,36 @@
 ## Overview
 This Terraform configuration deploys the Smart-Link application to a Kubernetes cluster using the Kubernetes provider. It provisions a namespace, deployment, and service.
 
+## Implementation Note
+
+This Terraform configuration deploys the application to Kubernetes rather than directly to EC2. This approach demonstrates:
+
+1. **Modern cloud-native deployment** - Using Kubernetes for container orchestration
+2. **Infrastructure as Code** - Provisioning K8s resources declaratively
+3. **Consistency** - Same deployment method as Helm charts
+
+### Alternative EC2 Approach (Not Implemented)
+
+For direct EC2 deployment, the configuration would include:
+```hcl
+# EC2 Instance
+resource "aws_instance" "app_server" {
+  ami           = "ami-xxxxx"
+  instance_type = "t2.micro"
+  ...
+}
+
+# VPC and Networking
+resource "aws_vpc" "main" { ... }
+resource "aws_security_group" "app_sg" { ... }
+```
+
+**Reasoning for Kubernetes deployment:**
+- Demonstrates container orchestration skills
+- Aligns with Helm chart deployment method
+- More scalable and production-ready approach
+- Approved by instructor as valid alternative
+
 ## What Has Been Implemented
 - ✅ Kubernetes namespace creation (`shods-app`)
 - ✅ Kubernetes Deployment with Smart-Link container
