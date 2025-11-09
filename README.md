@@ -59,38 +59,20 @@ The web app provides a centralized hub for the song across streaming platforms (
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Request                            │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-                    ┌────────────────┐
-                    │   Ingress      │
-                    │  (Optional)    │
-                    └────────┬───────┘
-                             │
-                             ▼
-                    ┌────────────────┐
-                    │   Service      │
-                    │  (NodePort)    │
-                    └────────┬───────┘
-                             │
-                 ┌───────────┴───────────┐
-                 ▼                       ▼
-        ┌────────────────┐      ┌────────────────┐
-        │   Pod 1        │      │   Pod 2        │
-        │  (Flask App)   │      │  (Flask App)   │
-        └────────────────┘      └────────────────┘
-```
+<img width="881" height="1222" alt="Screenshot 2025-11-09 at 16 09 17" src="https://github.com/user-attachments/assets/557d550b-b1c8-47a4-86e0-db47bc3ffcb1" />
+
 
 ### Deployment Flow
 
-```
-Developer Push → GitHub → Jenkins Pipeline → Docker Build → 
-Docker Hub → Helm Chart → Kubernetes Cluster → Production
-```
+The complete CI/CD pipeline automates the journey from code to production:
 
+1. **Developer Push** → Code committed to GitHub
+2. **Jenkins Trigger** → Automated pipeline starts
+3. **Build & Test** → Parallel linting and security scans
+4. **Containerization** → Docker multi-stage build
+5. **Registry** → Push to Docker Hub
+6. **Deployment** → Helm chart deploys to Kubernetes
+7. **Production** → Application running in K8s cluster
 ---
 
 ## 🛠️ Tech Stack
