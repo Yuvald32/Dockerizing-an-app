@@ -22,6 +22,7 @@
 
 - [About The Project](#-about-the-project)
 - [Architecture](#-architecture)
+- [Deployment Methods](#-deployment-methods)
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
 - [Getting Started](#-getting-started)
@@ -59,8 +60,7 @@ The web app provides a centralized hub for the song across streaming platforms (
 
 ## 🏗️ Architecture
 
-<img width="881" height="1222" alt="Screenshot 2025-11-09 at 16 09 17" src="https://github.com/user-attachments/assets/557d550b-b1c8-47a4-86e0-db47bc3ffcb1" />
-
+<img width="881" alt="Architecture Diagram" src="https://github.com/user-attachments/assets/557d550b-b1c8-47a4-86e0-db47bc3ffcb1" />
 
 ### Deployment Flow
 
@@ -73,6 +73,90 @@ The complete CI/CD pipeline automates the journey from code to production:
 5. **Registry** → Push to Docker Hub
 6. **Deployment** → Helm chart deploys to Kubernetes
 7. **Production** → Application running in K8s cluster
+
+---
+
+## 🚀 Deployment Methods
+
+This project demonstrates **two different deployment approaches** to showcase versatility and DevOps best practices:
+
+### Method 1: Helm Chart (Application-Centric) ⎈
+
+**Ideal for:** Application lifecycle management, Kubernetes-native deployments
+
+| Property | Value |
+|----------|-------|
+| **Namespace** | `default` |
+| **Deployment** | `smartlink-flask-aws-monitor` |
+| **Service** | `smartlink` (NodePort) |
+| **Command** | `helm upgrade --install smartlink ./helm-chart` |
+
+**Key Benefits:**
+- 📦 **Package Management** - Bundle all K8s resources together
+- 🔄 **Easy Upgrades** - Rollback and version management
+- ⚙️ **Configurable Values** - Customize via `values.yaml`
+- 🎯 **Kubernetes-Native** - Purpose-built for K8s deployments
+
+**Quick Deploy:**
+```bash
+cd helm-chart/
+helm upgrade --install smartlink . --namespace default
+kubectl get pods,svc
+minikube service smartlink --url
+```
+
+---
+
+### Method 2: Terraform (Infrastructure-Centric) 🏗️
+
+**Ideal for:** Infrastructure as Code, multi-cloud provisioning, resource versioning
+
+| Property | Value |
+|----------|-------|
+| **Namespace** | `shods-app` |
+| **Deployment** | `smartlink` |
+| **Service** | `smartlink-svc` (NodePort) |
+| **Command** | `terraform apply` |
+
+**Key Benefits:**
+- 📝 **Declarative IaC** - Infrastructure defined as code
+- 🔒 **State Management** - Track infrastructure changes
+- 🌍 **Cloud Agnostic** - Works across AWS, Azure, GCP
+- 🔄 **Version Control** - Git-tracked infrastructure changes
+
+**Quick Deploy:**
+```bash
+cd terraform/
+terraform init
+terraform apply
+kubectl get all -n shods-app
+minikube service smartlink-svc -n shods-app --url
+```
+
+---
+
+### Deployment Comparison
+
+| Feature | Helm | Terraform |
+|---------|------|-----------|
+| **Focus** | Application packaging | Infrastructure provisioning |
+| **Best For** | K8s app deployment | Multi-cloud IaC |
+| **Configuration** | `values.yaml` | `*.tf` files |
+| **State** | Helm release | Terraform state |
+| **Rollback** | `helm rollback` | `terraform apply` previous |
+| **Templating** | Go templates | HCL expressions |
+| **Scope** | Kubernetes-specific | Cloud-agnostic |
+
+### Why Both?
+
+Running both deployments simultaneously demonstrates:
+- ✅ **Versatility** - Multiple deployment strategies
+- ✅ **Comparison** - Understanding trade-offs
+- ✅ **Real-world Skills** - Both tools used in production
+- ✅ **DevOps Maturity** - Choosing right tool for the job
+
+**Note:** In production, you would typically choose ONE method based on your team's workflow and infrastructure requirements.
+
 ---
 
 ## 🛠️ Tech Stack
@@ -227,7 +311,7 @@ Smart-Link-App/
 3. **Verify deployment**
    ```bash
    kubectl get pods,svc
-   kubectl rollout status deployment/smartlink
+   kubectl rollout status deployment/smartlink-flask-aws-monitor
    ```
 
 4. **Access the application**
@@ -291,7 +375,12 @@ helm upgrade --install smartlink ./helm-chart \
    terraform output
    ```
 
-7. **Destroy infrastructure** (when done)
+7. **Access the application**
+   ```bash
+   minikube service smartlink-svc -n shods-app --url
+   ```
+
+8. **Destroy infrastructure** (when done)
    ```bash
    terraform destroy
    ```
@@ -353,7 +442,8 @@ Credentials Required:
 - 🔄 **CI/CD Pipeline** - Automated Jenkins workflow
 - 🛡️ **Security Scanning** - Bandit + Trivy integration
 - 📊 **Health Monitoring** - Liveness & readiness probes
-- 🏷️ **Version Tagging** - Semantic versioning (v0.1, v0.2, etc.)
+- 🏷️ **Version Tagging** - Semantic versioning (v0.1, v0.2, v0.3, v1.0)
+- 📦 **Dual Deployment** - Both Helm and Terraform methods
 
 ---
 
@@ -365,13 +455,15 @@ Credentials Required:
 - [x] Helm chart creation
 - [x] Terraform infrastructure
 - [x] Comprehensive documentation
-- [ ] AWS EC2 deployment (alternative to K8s)
+- [x] Dual deployment methods (Helm + Terraform)
+- [x] Git version tagging
 - [ ] Monitoring with Prometheus & Grafana
 - [ ] Logging with ELK Stack
 - [ ] GitOps with ArgoCD
 - [ ] Multi-environment support (dev/staging/prod)
 - [ ] Horizontal Pod Autoscaling
 - [ ] SSL/TLS with cert-manager
+- [ ] AWS EC2 deployment (alternative to K8s)
 
 ---
 
