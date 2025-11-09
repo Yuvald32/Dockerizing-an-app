@@ -6,6 +6,7 @@ pipeline {
                  description: 'Run mock lint & security instead of real tools')
   }
   environment {
+    PATH = "/usr/local/bin:${env.PATH}"
     DOCKERHUB = credentials('dockerhub')
     IMAGE      = "${DOCKERHUB_USR}/smart-link-app"
     IMAGE_TAG  = "${env.BUILD_NUMBER}"
@@ -71,8 +72,8 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: 'dockerhub',
                         usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
           sh """
-            echo "\$DH_PASS" | docker login -u "\$DH_USER" --password-stdin
-            docker build -t "${IMAGE_FULL}" -t "${IMAGE_LATEST}" .
+            echo "\$DH_PASS" | /usr/local/bin/docker login -u "\$DH_USER" --password-stdin
+            /usr/local/bin/docker build -t "${IMAGE_FULL}" -t "${IMAGE_LATEST}" .
           """
         }
       }
@@ -94,9 +95,9 @@ pipeline {
           withCredentials([usernamePassword(credentialsId: 'dockerhub',
                           usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
             sh """
-              echo "\$DH_PASS" | docker login -u "\$DH_USER" --password-stdin
-              docker push "${IMAGE_FULL}"
-              docker push "${IMAGE_LATEST}"
+              echo "\$DH_PASS" | /usr/local/bin/docker login -u "\$DH_USER" --password-stdin
+              /usr/local/bin/docker push "${IMAGE_FULL}"
+              /usr/local/bin/docker push "${IMAGE_LATEST}"
             """
           }
         }
@@ -104,7 +105,7 @@ pipeline {
     }
     stage('Cleanup') {
       steps {
-        sh 'docker logout || true'
+        sh '/usr/local/bin/docker logout || true'
       }
     }
   }
