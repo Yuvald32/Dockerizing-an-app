@@ -6,9 +6,7 @@ pipeline {
                  description: 'Run mock lint & security instead of real tools')
   }
   environment {
-    // IDs כפי שהגדרת ב-Credentials (Username/Password)
     DOCKERHUB = credentials('dockerhub')
-    // נבנה פעם אחת ונשתמש בכל השלבים
     IMAGE      = "${DOCKERHUB_USR}/smart-link-app"
     IMAGE_TAG  = "${env.BUILD_NUMBER}"
     IMAGE_FULL = "${IMAGE}:${IMAGE_TAG}"
@@ -92,21 +90,25 @@ pipeline {
     }
     stage('Push to Docker Hub') {
       steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub',
-                        usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
-          sh """
-            echo "\$DH_PASS" | docker login -u "\$DH_USER" --password-stdin
-            docker push "${IMAGE_FULL}"
-            docker push "${IMAGE_LATEST}"
-          """
+        catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+          withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                          usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+            sh """
+              echo "\$DH_PASS" | docker login -u "\$DH_USER" --password-stdin
+              docker push "${IMAGE_FULL}"
+              docker push "${IMAGE_LATEST}"
+            """
+          }
         }
+      }
+    }
+    stage('Cleanup') {
+      steps {
+        sh 'docker logout || true'
       }
     }
   }
   post {
-    always {
-      sh 'docker logout || true'
-    }
     success {
       echo "Done. Image: ${IMAGE_FULL}"
     }
