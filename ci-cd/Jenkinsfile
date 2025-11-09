@@ -1,13 +1,10 @@
 pipeline {
   agent any
-
   options { timestamps() }
-
   parameters {
     booleanParam(name: 'USE_MOCK', defaultValue: true,
                  description: 'Run mock lint & security instead of real tools')
   }
-
   environment {
     // IDs כפי שהגדרת ב-Credentials (Username/Password)
     DOCKERHUB = credentials('dockerhub')
@@ -17,13 +14,10 @@ pipeline {
     IMAGE_FULL = "${IMAGE}:${IMAGE_TAG}"
     IMAGE_LATEST = "${IMAGE}:latest"
   }
-
   stages {
-
     stage('Checkout') {
       steps { checkout scm }
     }
-
     stage('Parallel Checks') {
       parallel {
         stage('Linting') {
@@ -51,7 +45,6 @@ pipeline {
             }
           }
         }
-
         stage('Security Scan (Code)') {
           steps {
             script {
@@ -75,7 +68,6 @@ pipeline {
         }
       }
     }
-
     stage('Docker Build & Login') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub',
@@ -87,7 +79,6 @@ pipeline {
         }
       }
     }
-
     stage('Security Scan (Image)') {
       when { expression { return !params.USE_MOCK } }
       steps {
@@ -99,7 +90,6 @@ pipeline {
         """
       }
     }
-
     stage('Push to Docker Hub') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub',
@@ -113,11 +103,9 @@ pipeline {
       }
     }
   }
-post {
+  post {
     always {
-      script {
-        sh 'docker logout || true'
-      }
+      sh 'docker logout || true'
     }
     success {
       echo "Done. Image: ${IMAGE_FULL}"
@@ -127,4 +115,3 @@ post {
     }
   }
 }
-  
